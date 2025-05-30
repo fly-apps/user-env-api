@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- NEVER print environment variables
+- NEVER read .envrc

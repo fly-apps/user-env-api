@@ -1,0 +1,20 @@
+[http_service]
+  internal_port = 3004
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 3004
+  processes = ['app']
+
+  [[services.ports]]
+    port = 3004
+    handlers = ['http']
+
+  [[services.ports]]
+    port = 8080
+    handlers = ['http']
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

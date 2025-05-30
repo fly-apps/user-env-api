@@ -1,0 +1,11 @@
+[install]
+# Use the latest version of dependencies
+exact = true
+
+[test]
+# Enable TypeScript for tests
+typescript = true
+
+[run]
+# Enable TypeScript for running
+typescript = true 

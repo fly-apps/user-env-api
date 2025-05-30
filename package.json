@@ -1,0 +1,14 @@
+{
+  "name": "fly-user-env-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run server.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-iam": "3.817.0",
+    "@aws-sdk/client-s3": "3.820.0",
+    "@types/node": "^20.11.24",
+    "bun-types": "latest"
+  }
+}
