@@ -1,0 +1,7 @@
+# flyctl launch added from .gitignore
+# Dependencies
+**/node_modules
+**/.envrc
+**/api.machines.dev.json
+**/tigris.ex
+fly.toml

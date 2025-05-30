@@ -1,5 +1,6 @@
+
 [http_service]
-  internal_port = 3004
+  internal_port = 8080
 
 [[services]]
   protocol = 'tcp'
