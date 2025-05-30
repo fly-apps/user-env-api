@@ -1,12 +1,14 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "bun:test";
 import { createTigrisBucket, deleteBucket } from "../lib/tigris.ts";
 import { randomUUID } from "crypto";
+import { api } from "../lib/api";
 
 // Test configuration
 const TEST_PORT = Math.floor(Math.random() * (65535 - 3000) + 3000);
 const TEST_HOST = `http://localhost:${TEST_PORT}`;
 const TEST_AUTH = `Bearer ${process.env.FLY_USER_APPS_DEV_TOKEN}`;
 const TEST_ORG = process.env.FLY_USER_APPS_DEV_ORG;
+const INVALID_ORG = "invalid-org";
 
 if (!process.env.FLY_USER_APPS_DEV_TOKEN) {
   throw new Error("FLY_USER_APPS_DEV_TOKEN environment variable is required for tests");
@@ -15,6 +17,9 @@ if (!process.env.FLY_USER_APPS_DEV_TOKEN) {
 if (!TEST_ORG) {
   throw new Error("FLY_USER_APPS_DEV_ORG environment variable is required for tests");
 }
+
+console.log("TEST_ORG:", TEST_ORG);
+console.log("FLY_ALLOWED_ORGS:", process.env.FLY_ALLOWED_ORGS);
 
 // Store created resources for cleanup
 const createdApps: string[] = [];
@@ -26,6 +31,11 @@ beforeAll(async () => {
   // Import and start the server
   const { default: startServer } = await import("../server.ts");
   server = await startServer(TEST_PORT);
+
+  // Set FLY_APP_NAME to simulate running in a Fly machine
+  process.env.FLY_APP_NAME = "test-app";
+  // Restrict orgs to test org
+  process.env.FLY_ALLOWED_ORGS = TEST_ORG;
 });
 
 // Clean up after each test
@@ -194,5 +204,76 @@ describe("API Integration Tests", () => {
       }
     });
     expect(getResponse.status).toBe(200);
+  });
+
+  test("should reject app creation with invalid org", async () => {
+    const appName = `test-app-${Date.now()}`;
+    const response = await fetch(`${TEST_HOST}/v1/apps`, {
+      method: "POST",
+      headers: {
+        "Authorization": TEST_AUTH,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: appName,
+        org: INVALID_ORG
+      })
+    });
+
+    expect(response.status).toBe(403);
+    const data = await response.text();
+    expect(data).toBe("Unauthorized: Invalid organization");
+  });
+
+  test("should lookup org from test-user-env-proxy app", async () => {
+    // First, clear the cached org and FLY_ALLOWED_ORGS to force lookup
+    process.env.FLY_ALLOWED_ORGS = "";
+    process.env.FLY_APP_NAME = "test-user-env-proxy";
+    
+    console.log("[test] Testing org lookup with FLY_ALLOWED_ORGS unset");
+    
+    // Create an app with the test org
+    const appName = `test-app-${randomUUID()}`;
+    const response = await fetch(`${TEST_HOST}/v1/apps`, {
+      method: "POST",
+      headers: {
+        "Authorization": TEST_AUTH,
+        "Content-Type": "application/json",
+        "Accept-Encoding": "identity"
+      },
+      body: JSON.stringify({
+        app_name: appName,
+        org_slug: TEST_ORG
+      })
+    });
+
+    expect(response.ok).toBe(true);
+    
+    // Try to create another app with a different org - should fail
+    const invalidResponse = await fetch(`${TEST_HOST}/v1/apps`, {
+      method: "POST",
+      headers: {
+        "Authorization": TEST_AUTH,
+        "Content-Type": "application/json",
+        "Accept-Encoding": "identity"
+      },
+      body: JSON.stringify({
+        app_name: `test-app-${randomUUID()}`,
+        org_slug: INVALID_ORG
+      })
+    });
+
+    expect(invalidResponse.status).toBe(403);
+    const data = await invalidResponse.text();
+    expect(data).toBe("Unauthorized: Invalid organization");
+
+    // Clean up the test app
+    await fetch(`${TEST_HOST}/v1/apps/${appName}`, {
+      method: "DELETE",
+      headers: { 
+        "Authorization": TEST_AUTH,
+        "Accept-Encoding": "identity"
+      }
+    });
   });
 }); 

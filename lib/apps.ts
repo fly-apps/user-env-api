@@ -1,6 +1,7 @@
 import { createTigrisBucket, deleteBucket } from "./tigris.ts";
 import { api } from "./api.ts";
 import { setSecrets } from "./secrets.ts";
+import { validateOrg } from "./orgs";
 
 interface CreateAppResponse {
   id: string;
@@ -19,8 +20,6 @@ interface ErrorResponse {
   status: string;
 }
 
-const MACHINES_API_BASE_URL = "https://api.machines.dev/v1";
-
 async function deleteApp(appName: string, authHeader: string): Promise<void> {
   try {
     console.debug(`[deleteApp] Deleting app: ${appName}`);
@@ -35,52 +34,52 @@ async function deleteApp(appName: string, authHeader: string): Promise<void> {
   }
 }
 
-export async function create(req: Request): Promise<Response> {
-  const authHeader = req.headers.get("Authorization") || "";
+export async function create(token: string, name: string, org_slug: string): Promise<Response> {
+  // Validate org access
+  const isValidOrg = await validateOrg(token, org_slug);
+  if (!isValidOrg) {
+    return new Response("Unauthorized: Invalid organization", { status: 403 });
+  }
+
   let bucketCreated = false;
 
-  // Clone the request body so we can parse it and also proxy it
-  const reqBody = await req.clone().json();
-  const appName = reqBody.app_name;
-  if (!appName || typeof appName !== "string") {
-    return new Response(JSON.stringify({ error: "app_name is required in request body", status: "error" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // First, create the app upstream
-  console.debug(`[create] Creating app upstream`);
-  const createResponse = await api.proxy(req);
-
-  // If upstream creation fails, return the error response
-  if (!createResponse.ok) {
-    console.debug(`[create] Upstream app creation failed with status: ${createResponse.status}`);
-    return createResponse;
-  }
-
   try {
+    // First, create the app
+    const createResponse = await api.fetch("/v1/apps", {
+      method: "POST",
+      headers: {
+        "Authorization": token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ app_name: name, org_slug })
+    });
+
+    if (!createResponse.ok) {
+      return createResponse;
+    }
+
     // Create bucket and credentials
-    console.debug(`[create] Creating Tigris bucket and credentials for: ${appName}`);
-    const credentials = await createTigrisBucket(appName);
+    console.debug(`[create] Creating Tigris bucket and credentials for: ${name}`);
+    const credentials = await createTigrisBucket(name);
     bucketCreated = true;
 
     // Set app secrets
-    console.debug(`[create] Setting app secrets for: ${appName}`);
-    await setSecrets(appName, {
+    console.debug(`[create] Setting app secrets for: ${name}`);
+    await setSecrets(name, {
       FLY_TIGRIS_ACCESS_KEY_ID: credentials.accessKeyId,
       FLY_TIGRIS_SECRET_ACCESS_KEY: credentials.secretAccessKey,
       FLY_TIGRIS_BUCKET: credentials.bucket,
-    }, authHeader);
+    }, token);
 
-    // Return the original response as-is
+    // Return the original response
     return createResponse;
   } catch (error) {
+    // Clean up on failure
     if (bucketCreated) {
-      console.debug(`[create] Deleting bucket due to error: ${appName}`);
-      await deleteBucket(appName);
+      console.debug(`[create] Deleting bucket due to error: ${name}`);
+      await deleteBucket(name);
     }
-    await deleteApp(appName, authHeader);
+    await deleteApp(name, token);
     return new Response(JSON.stringify({ error: `Failed to set up Tigris: ${error.message}`, status: "error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

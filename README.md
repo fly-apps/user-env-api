@@ -1,8 +1,27 @@
 # Fly User Environment API Proxy
 
-This is an API proxy service that enables end users to provision Fly machines with Tigris-backed state storage. It provides a simple way for users to get started with persistent state in their Fly applications, with each app getting its own isolated Tigris bucket.
+This API proxy service enables end users to provision Fly machines with Tigris-backed state storage. It uses `github.com/superfly/app-storage` for setting up the environment for Fly applications.
 
-This project uses [github.com/superfly/app-storage](https://github.com/superfly/app-storage) to set up the environment for Fly applications.
+## Overview
+
+The API proxy service provides a secure way to create and manage Fly applications with Tigris storage integration. It enforces organization restrictions to ensure applications are created in the correct organization.
+
+## Organization Restrictions
+
+The service enforces organization restrictions in the following ways:
+
+1. **Environment Variable Control**: Set `FLY_ALLOWED_ORGS` to control which organizations can create apps:
+   - Comma-separated list of org slugs (e.g., `org1,org2`)
+   - Use `*` to allow all organizations
+   - Leave unset to restrict to the current app's organization
+
+2. **Current App Organization**: When `FLY_ALLOWED_ORGS` is not set, the service will:
+   - Look up the organization of the current app (set via `FLY_APP_NAME`)
+   - Only allow app creation in that same organization
+
+3. **Request Validation**: All app creation requests must include:
+   - `org_slug`: The target organization for the new app
+   - The request will be rejected if the organization is not allowed
 
 ## Setup
 
@@ -11,12 +30,7 @@ This project uses [github.com/superfly/app-storage](https://github.com/superfly/
    fly launch --from https://github.com/fly-apps/user-env-api --yes
    ```
 
-2. Create a Tigris bucket for state storage:
-   ```bash
-   fly bucket create my-user-env-api-bucket
-   ```
-
-3. Rrun `fly tigris dashboard` and:
+2. Run `fly tigris dashboard` and:
    - Create new credentials with Admin privileges
    - Set the following secrets on your Fly app:
      ```bash
@@ -34,26 +48,26 @@ The API proxy provides the following endpoints:
 - `POST /v1/apps/:app_name/machines` - Create a machine for an app
 - All other `/v1/*` endpoints are proxied to the Fly API
 
-### Example: Creating an App
+### Create an App
 
 ```bash
 curl -X POST http://my-user-env-api.fly.dev/v1/apps \
   -H "Authorization: Bearer your-fly-token" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "my-app",
-    "org_slug": "your-org"
+    "app_name": "my-app",
+    "org_slug": "my-org"
   }'
 ```
 
-### Example: Deleting an App
+### List App Secrets
 
 ```bash
-curl -X DELETE http://my-user-env-api.fly.dev/v1/apps/my-app \
+curl http://my-user-env-api.fly.dev/v1/apps/my-app/secrets \
   -H "Authorization: Bearer your-fly-token"
 ```
 
-### Example: Creating a Machine
+### Create a Machine
 
 ```bash
 curl -X POST http://my-user-env-api.fly.dev/v1/apps/my-app/machines \
@@ -62,7 +76,16 @@ curl -X POST http://my-user-env-api.fly.dev/v1/apps/my-app/machines \
   -d '{
     "config": {
       "image": "flyio/ubuntu:latest",
-      "mounts": [{ "volume": "your-volume-id", "path": "/data" }]
+      "mounts": [
+        {
+          "volume": "vol_123",
+          "path": "/data"
+        }
+      ]
     }
   }'
 ```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -32,9 +32,12 @@ export const api = {
     });
     return new Response(response.body, response);
   },
-  fetch: async (path: string, options: RequestInit = {}): Promise<Response> => {
-    const url = `${UPSTREAM_ORIGIN}${path}`;
-    console.log(`[api.fetch] ${options.method || 'GET'} ${url}`);
-    return fetch(url, options);
+  async fetch(path: string, options: RequestInit = {}): Promise<Response> {
+    const url = `https://api.machines.dev${path}`;
+    const headers = new Headers(options.headers || {});
+    if (!headers.has("Accept-Encoding")) {
+      headers.set("Accept-Encoding", "identity");
+    }
+    return fetch(url, { ...options, headers });
   }
 }; 

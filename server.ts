@@ -11,8 +11,12 @@ export default async function startServer(port: number) {
       const url = new URL(req.url);
       
       // Handle app creation
-      if (url.pathname === "/v1/apps" && req.method === "POST") {
-        return apps.create(req);
+      if (req.method === "POST" && url.pathname === "/v1/apps") {
+        const authHeader = req.headers.get("Authorization") || "";
+        const body = await req.json();
+        const org_slug = body.org_slug;
+        const name = body.app_name;
+        return await apps.create(authHeader, name, org_slug);
       }
 
       // Handle app deletion
