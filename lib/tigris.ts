@@ -49,9 +49,9 @@ async function createBucket(bucketName: string): Promise<void> {
     const response = await s3Client.send(new CreateBucketCommand({
       Bucket: bucketName
     }));
-    console.log(`[tigris] Create bucket response:`, JSON.stringify(response, null, 2));
+    console.log(`[tigris] Create bucket response: ${JSON.stringify(response, null, 2)}`);
   } catch (error) {
-    console.error(`[tigris] Create bucket error:`, JSON.stringify(error, null, 2));
+    console.error(`[tigris] Create bucket error: ${JSON.stringify(error, null, 2)}`);
     throw error;
   }
 }
@@ -61,9 +61,9 @@ export async function deleteBucket(bucketName: string): Promise<void> {
     const response = await s3Client.send(new DeleteBucketCommand({
       Bucket: bucketName
     }));
-    console.log(`[tigris] Delete bucket response:`, JSON.stringify(response, null, 2));
+    console.log(`[tigris] Delete bucket response: ${JSON.stringify(response, null, 2)}`);
   } catch (error) {
-    console.error(`[tigris] Delete bucket error:`, JSON.stringify(error, null, 2));
+    console.error(`[tigris] Delete bucket error: ${JSON.stringify(error, null, 2)}`);
     throw error;
   }
 }
@@ -97,7 +97,7 @@ async function createAccessKey(
     const response = await iamClient.send(new CreateAccessKeyCommand({
       UserName: userName
     }));
-    console.log(`[tigris] Create access key response:`, JSON.stringify(response, null, 2));
+    console.log(`[tigris] Create access key response: ${JSON.stringify(response, null, 2)}`);
 
     if (!response.AccessKey?.AccessKeyId || !response.AccessKey?.SecretAccessKey) {
       return {
@@ -129,7 +129,7 @@ async function createPolicy(
       PolicyName: policyName,
       PolicyDocument: policyDocument
     }));
-    console.log(`[tigris] Create policy response:`, JSON.stringify(response, null, 2));
+    console.log(`[tigris] Create policy response: ${JSON.stringify(response, null, 2)}`);
 
     if (!response.Policy?.Arn) {
       return {
@@ -158,7 +158,7 @@ async function attachUserPolicy(
       UserName: userName,
       PolicyArn: policyArn
     }));
-    console.log(`[tigris] Attach user policy response:`, JSON.stringify(response, null, 2));
+    console.log(`[tigris] Attach user policy response: ${JSON.stringify(response, null, 2)}`);
   } catch (error) {
     console.error(`[tigris] Attach user policy error:`, JSON.stringify(error, null, 2));
     return {
@@ -212,7 +212,7 @@ async function createCredentials(bucketName: string): Promise<Credentials> {
     const accessKeyResponse = await iamClient.send(new CreateAccessKeyCommand({
       UserName: bucketName
     }));
-    console.log(`[tigris] Create credentials access key response:`, JSON.stringify(accessKeyResponse, null, 2));
+    console.log(`[tigris] Create credentials access key response: ${JSON.stringify(accessKeyResponse, null, 2)}`);
 
     if (!accessKeyResponse.AccessKey) {
       throw new Error("Failed to create access key");
@@ -225,7 +225,7 @@ async function createCredentials(bucketName: string): Promise<Credentials> {
       PolicyName: policyName,
       PolicyDocument: policyDocument
     }));
-    console.log(`[tigris] Create credentials policy response:`, JSON.stringify(policyResponse, null, 2));
+    console.log(`[tigris] Create credentials policy response: ${JSON.stringify(policyResponse, null, 2)}`);
 
     if (!policyResponse.Policy?.Arn) {
       throw new Error("Failed to create policy: Missing policy ARN in response");

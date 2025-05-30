@@ -178,6 +178,57 @@ describe("API Integration Tests", () => {
     expect(machineResponse.ok).toBe(true);
     const machineData = await machineResponse.json();
     expect(machineData.id).toBeDefined();
+
+    // Wait for machine to start, checking status every 5 seconds for up to 30 seconds
+    console.log("[test] Waiting for machine to start...");
+    let statusData;
+    for (let i = 0; i < 6; i++) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      const statusResponse = await fetch(`${TEST_HOST}/v1/apps/${testApp}/machines/${machineData.id}`, {
+        headers: { 
+          "Authorization": TEST_AUTH,
+          "Accept-Encoding": "identity"
+        }
+      });
+
+      expect(statusResponse.ok).toBe(true);
+      statusData = await statusResponse.json();
+      console.log(`[test] Machine status (attempt ${i + 1}/6):`, statusData.state);
+      
+      if (statusData.state === "started") {
+        break;
+      }
+    }
+
+    if (statusData.state !== "started") {
+      // Print Fly logs for debugging
+      console.log(`[test] Machine did not start, fetching logs for app: ${testApp}`);
+      const { execSync } = require("child_process");
+      try {
+        const logs = execSync(`fly logs -a ${testApp} --no-tail`, { encoding: "utf-8" });
+        console.log(`[fly logs output for ${testApp}]:\n${logs}`);
+      } catch (err) {
+        console.error(`[test] Failed to fetch logs:`, err);
+      }
+      
+      // Fetch machine details from api.machines.dev
+      console.log(`[test] Fetching machine details from api.machines.dev for machine: ${machineData.id}`);
+      const machineDetailsResponse = await fetch(`https://api.machines.dev/v1/apps/${testApp}/machines/${machineData.id}`, {
+        headers: { 
+          "Authorization": TEST_AUTH,
+          "Accept-Encoding": "identity"
+        }
+      });
+      if (machineDetailsResponse.ok) {
+        const machineDetails = await machineDetailsResponse.json();
+        console.log(`[machine details]:\n${JSON.stringify(machineDetails, null, 2)}`);
+      } else {
+        console.error(`[test] Failed to fetch machine details: ${machineDetailsResponse.status} ${machineDetailsResponse.statusText}`);
+      }
+    }
+
+    expect(statusData.state).toBe("started");
   });
 
   test("should delete an app", async () => {
